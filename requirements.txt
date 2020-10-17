@@ -8,7 +8,6 @@ matplotlib
 meshio
 lxml
 h5py
-git+https://bitbucket.org/fenics-project/fiat.git#egg=fenics-fiat
-git+https://bitbucket.org/fenics-project/ufl.git#egg=fenics-ufl
-git+https://bitbucket.org/fenics-project/dijitso.git#egg=fenics-dijitso
-git+https://github.com/FEniCS/ffcx.git#egg=fenics-ffc
+git+https://github.com/FEniCS/fiat.git#egg=fenics-fiat
+git+https://github.com/FEniCS/ufl.git#egg=fenics-ufl
+git+https://github.com/FEniCS/ffcx.git#egg=fenics-ffcx

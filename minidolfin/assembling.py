@@ -1,18 +1,17 @@
 
-import ffc
-from ffc.codegeneration import jit as ffc_jit
+from ffcx import fiatinterface
+from ffcx.codegeneration import jit as ffcx_jit
 import cffi
 import scipy.sparse
 import numpy
 import numba
-import numba.cffi_support
+from numba.core.typing import cffi_utils
+
 
 # Register C complex types
 ffi = cffi.FFI()
-numba.cffi_support.register_type(ffi.typeof('double _Complex'),
-                                 numba.types.complex128)
-numba.cffi_support.register_type(ffi.typeof('float _Complex'),
-                                 numba.types.complex64)
+cffi_utils.register_type(ffi.typeof('double _Complex'), numba.types.complex128)
+cffi_utils.register_type(ffi.typeof('float _Complex'), numba.types.complex64)
 
 
 def c_to_numpy(ctype):
@@ -35,7 +34,7 @@ def numpy_to_c(dtype):
 
 def jit_compile_forms(forms, params):
 
-    compiled_forms, module = ffc_jit.compile_forms(
+    compiled_forms, module = ffcx_jit.compile_forms(
         forms, parameters=params)
 
     for f, compiled_f in zip(forms, compiled_forms):
@@ -70,7 +69,7 @@ def assemble(dofmap, form, dtype=numpy.double,
 
     # Prepare cell tensor temporary
     elements = tuple(arg.ufl_element() for arg in form.arguments())
-    fiat_elements = map(ffc.fiatinterface.create_element, elements)
+    fiat_elements = map(fiatinterface.create_element, elements)
     element_dims = tuple(fe.space_dimension() for fe in fiat_elements)
 
     ffi = cffi.FFI()
@@ -84,6 +83,9 @@ def assemble(dofmap, form, dtype=numpy.double,
 
         # Preallocate output buffer, and temporary for coords
 
+        perm1 = ffi.from_buffer(numpy.array([0], dtype=numpy.int32))
+        perm2 = ffi.from_buffer(numpy.array([0], dtype=numpy.uint8))
+        constants = numpy.array([0.0], dtype=coefficients.dtype)
         coords = numpy.empty((cells.shape[1], vertices.shape[1]),
                              dtype=numpy.float64)
         caddr = ffi.from_buffer(coords)
@@ -97,7 +99,8 @@ def assemble(dofmap, form, dtype=numpy.double,
             assembly_kernel(ffi.from_buffer(val[i * local_size:]),
                             ffi.from_buffer(coefficients
                                             [i * coeff_size:]),
-                            caddr, 0)
+                            ffi.from_buffer(constants),
+                            caddr, perm1, perm2, 0)
 
     @numba.jit(nopython=True, cache=False)
     def _assemble_linear(coefficients, vec):
@@ -108,6 +111,9 @@ def assemble(dofmap, form, dtype=numpy.double,
         # Temporaries
         b = numpy.empty(element_dims[0], dtype=dtype)
         baddr = ffi.from_buffer(b)
+        perm1 = ffi.from_buffer(numpy.array([0], dtype=numpy.int32))
+        perm2 = ffi.from_buffer(numpy.array([0], dtype=numpy.uint8))
+        constants = numpy.array([0.0], dtype=coefficients.dtype)
         coords = numpy.empty((cells.shape[1], vertices.shape[1]),
                              dtype=numpy.float64)
         caddr = ffi.from_buffer(coords)
@@ -124,7 +130,8 @@ def assemble(dofmap, form, dtype=numpy.double,
             assembly_kernel(baddr,
                             ffi.from_buffer(coefficients
                                             [i * num_coeffs:]),
-                            caddr, 0)
+                            ffi.from_buffer(constants),
+                            caddr, perm1, perm2, 0)
 
             # Add to global tensor
             for i, ig in enumerate(cell_dofs[i]):
@@ -179,7 +186,7 @@ def symass(dofmap, LHSform, RHSform, bc_map, dtype=numpy.float64,
 
     # Prepare cell tensor temporary
     elements = tuple(arg.ufl_element() for arg in LHSform.arguments())
-    fiat_elements = map(ffc.fiatinterface.create_element, elements)
+    fiat_elements = map(fiatinterface.create_element, elements)
     element_dims = tuple(fe.space_dimension() for fe in fiat_elements)
 
     ffi = cffi.FFI()
@@ -209,16 +216,22 @@ def symass(dofmap, LHSform, RHSform, bc_map, dtype=numpy.float64,
             A = numpy.zeros(element_dims, dtype=dtype)
             wA = numpy.array([0], dtype=dtype)
             wb = numpy.array([0], dtype=dtype)
+            cA = numpy.array([0], dtype=dtype)
+            cb = numpy.array([0], dtype=dtype)
+            perm1 = ffi.from_buffer(numpy.array([0], dtype=numpy.int32))
+            perm2 = ffi.from_buffer(numpy.array([0], dtype=numpy.uint8))
             for i, q in enumerate(cells[c]):
                 coords[i, :] = vertices[q]
 
             LHS_kernel(ffi.from_buffer(A),
                        ffi.from_buffer(wA),
-                       ffi.from_buffer(coords), 0)
+                       ffi.from_buffer(cA),
+                       ffi.from_buffer(coords), perm1, perm2, 0)
 
             RHS_kernel(ffi.from_buffer(b),
                        ffi.from_buffer(wb),
-                       ffi.from_buffer(coords), 0)
+                       ffi.from_buffer(cb),
+                       ffi.from_buffer(coords), perm1, perm2, 0)
 
             rows = cell_dofs[c]
 

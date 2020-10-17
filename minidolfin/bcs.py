@@ -1,4 +1,4 @@
-import ffc
+from ffcx import fiatinterface
 import numpy
 import scipy.sparse
 
@@ -17,7 +17,7 @@ def build_dirichlet_dofs(dofmap, value, dtype=numpy.double):
     cell_dofs = dofmap.cell_dofs
 
     # Fetch data from reference element
-    fiat_element = ffc.fiatinterface.create_element(dofmap.element)
+    fiat_element = fiatinterface.create_element(dofmap.element)
     facet_dofs = fiat_element.entity_closure_dofs()[tdim-1]
     mapping, = set(fiat_element.mapping())
 

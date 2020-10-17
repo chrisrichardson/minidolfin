@@ -19,4 +19,4 @@ setup(name="minidolfin",
       license="LGPL v3 or later",
       zip_safe=False,
       packages=["minidolfin"],
-      install_requires=["fenics-ffc", "numba", "matplotlib", "cffi", "requests", "meshio"])
+      install_requires=["fenics-ffcx", "numba", "matplotlib", "cffi", "requests", "meshio"])

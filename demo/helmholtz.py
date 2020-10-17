@@ -4,7 +4,6 @@
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
 import ufl
-import ffc
 import numpy
 from matplotlib import pyplot, tri
 import scipy.sparse.linalg
@@ -27,12 +26,6 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("-n", "--mesh-size", type=int, dest="n", default=128,
                     help="mesh resolution")
-parser.add_argument("-c", "--form-compiler", type=str, dest="form_compiler",
-                    default="tsfc", choices=["tsfc", "ffc"],
-                    help="form compiler")
-parser.add_argument("-r", "--representation", type=str, dest="representation",
-                    default="uflacs", choices=["uflacs", "tsfc"],
-                    help="ffc representation")
 parser.add_argument("-f", action="append", dest="form_compiler_parameters",
                     metavar="parameter=value", default=[],
                     help="additional form compiler paramter")
@@ -40,14 +33,9 @@ parser.add_argument("-d", "--debug", action='store_true', default=False,
                     help="enable debug output")
 args = parser.parse_args()
 
-# Make dijitso talk to us
-if args.debug:
-    ffc.logger.setLevel("DEBUG")
 
 # Build form compiler parameters
 form_compiler_parameters = {}
-form_compiler_parameters["compiler"] = args.form_compiler
-form_compiler_parameters["representation"] = args.representation
 for p in args.form_compiler_parameters:
     k, v = p.split("=")
     form_compiler_parameters[k] = v
